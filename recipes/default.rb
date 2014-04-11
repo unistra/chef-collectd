@@ -8,3 +8,4 @@
 if node['platform'] == 'ubuntu'
     include_recipe "collectd::ubuntu"
 end
+include_recipe "collectd::config"
