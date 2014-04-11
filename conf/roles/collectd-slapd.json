@@ -19,19 +19,19 @@
             "-File:/var/log/slapd.log": [
               {"Instance": "slapd"},
               {
-                "-Match:conns": [
-                  {"Instance": "conns"},
-                  {"Regex": ".*\\sBIND\\s.*\\smech=.*"},
-                  {"DSType": "CounterInc"},
-                  {"Type": "counter"}
-                ]
-              },
-              {
-                "-Match:search": [
-                  {"Instance": "conns"},
-                  {"Regex": ".*\\sSRCH\\sbase=.*"},
-                  {"DSType": "CounterInc"},
-                  {"Type": "counter"}
+                "-Match": [
+                  [
+                    {"Instance": "conns"},
+                    {"Regex": ".*\\sBIND\\s.*\\smech=.*"},
+                    {"DSType": "CounterInc"},
+                    {"Type": "counter"}
+                  ],
+                  [
+                    {"Instance": "search"},
+                    {"Regex": ".*\\sSRCH\\sbase=.*"},
+                    {"DSType": "CounterInc"},
+                    {"Type": "counter"}
+                  ]
                 ]
               }
             ]

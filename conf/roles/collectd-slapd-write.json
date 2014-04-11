@@ -14,35 +14,31 @@
             "-File:/var/log/slapd.log": [
               {"Instance": "slapd"},
               {
-                "-Match:add": [
-                  {"Instance": "add"},
-                  {"Regex": ".* ADD .*"},
-                  {"DSType": "CounterInc"},
-                  {"Type": "counter"}
-                ]
-              },
-              {
-                "-Match:delete": [
-                  {"Instance": "delete"},
-                  {"Regex": ".* DEL .*"},
-                  {"DSType": "CounterInc"},
-                  {"Type": "counter"}
-                ]
-              },
-              {
-                "-Match:update": [
-                  {"Instance": "update"},
-                  {"Regex": ".* MOD .*"},
-                  {"DSType": "CounterInc"},
-                  {"Type": "counter"}
-                ]
-              },
-              {
-                "-Match:move": [
-                  {"Instance": "move"},
-                  {"Regex": ".* MODRDN .*"},
-                  {"DSType": "CounterInc"},
-                  {"Type": "counter"}
+                "-Match": [
+                  [
+                    {"Instance": "add"},
+                    {"Regex": ".*\\sADD\\s.*"},
+                    {"DSType": "CounterInc"},
+                    {"Type": "counter"}
+                  ],
+                  [
+                    {"Instance": "delete"},
+                    {"Regex": ".*\\sDEL\\s.*"},
+                    {"DSType": "CounterInc"},
+                    {"Type": "counter"}
+                  ],
+                  [
+                    {"Instance": "update"},
+                    {"Regex": ".*\\sMOD\\s.*"},
+                    {"DSType": "CounterInc"},
+                    {"Type": "counter"}
+                  ],
+                  [
+                    {"Instance": "move"},
+                    {"Regex": ".*\\sMODRDN\\s.*"},
+                    {"DSType": "CounterInc"},
+                    {"Type": "counter"}
+                  ]
                 ]
               }
             ]

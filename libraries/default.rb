@@ -1,17 +1,12 @@
-# encoding: utf-8
-require 'json'
-require 'pp'
-
 # Tabulation value in generated files.
 TAB = "    "
 
 
 def get_collectd_conf(attributes)
-    # Get collectd configuration (plugins and chains) from attributes.
     collectd_config = {
-        'params' => {},
-        'plugins' => {},
-        'chains' => {'plugins' => [], 'precache' => {}, 'postcache' => {}}
+        'params'    => {},
+        'plugins'   => {},
+        'chains'    => {'plugins' => [], 'precache' => {}, 'postcache' => {}}
     }
     attributes.each do |attr, value|
         # Merge global parameters.
@@ -74,7 +69,7 @@ def list2hash(config)
                 hash[key] = value.kind_of?(Array) ? list2hash(value) : value
             end
         else
-            return config
+            return config.map{|elt| elt.kind_of?(Array) ? list2hash(elt) : elt}
         end
     end
     hash
@@ -86,9 +81,6 @@ def gen_conf(config)
 
     # Generate global parameters.
     content.concat(config['params'].map{|param, value| "#{param} #{value}"})
-#    config['params'].each do |param, value|
-#        content.push("#{param} #{value}")
-#    end
     content.push('')
 
     # Plugins which provide logging functions should be loaded first, so log
@@ -150,9 +142,17 @@ def gen_block(conf, level=1)
     conf.each do |attr, value|
         if attr.start_with?('-')
             balise, name = attr[1..-1].split(':')
-            result.push("#{TAB * level}<#{balise} \"#{name}\">")
-            result.concat(gen_block(value, level+1))
-            result.push("#{TAB * level}</#{balise}>")
+            if name.nil? || name.empty?
+                value.each do |elt|
+                    result.push("#{TAB * level}<#{balise}>")
+                    result.concat(gen_block(elt, level + 1))
+                    result.push("#{TAB * level}</#{balise}>")
+                end
+            else
+                result.push("#{TAB * level}<#{balise} \"#{name}\">")
+                result.concat(gen_block(value, level + 1))
+                result.push("#{TAB * level}</#{balise}>")
+            end
         else
             if value.kind_of?(String)
                 result.push(
@@ -169,21 +169,4 @@ def gen_block(conf, level=1)
         end
     end
     result
-end
-
-
-if __FILE__ == $0
-    attributes = JSON.load(
-        File.new('conf/roles/collectd-system.json'))['default_attributes']
-    attributes.merge!(JSON.load(
-        File.new('conf/roles/collectd-linux.json'))['default_attributes'])
-#    attributes.merge!(JSON.load(
-#        File.new('conf/roles/collectd-slapd.json'))['default_attributes'])
-#    attributes.merge!(JSON.load(
-#        File.new('conf/roles/collectd-slapd-write.json'))['default_attributes'])
-    attributes.merge!(JSON.load(
-        File.new('conf/roles/collectd-postgresql.json'))['default_attributes'])
-
-    collectd_conf = get_collectd_conf(attributes)
-    puts gen_conf(collectd_conf, {'FQDNLookup'=>false})
 end
