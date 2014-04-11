@@ -1,0 +1,15 @@
+{
+  "chef_type": "role",
+  "json_class": "Chef::Role",
+  "name": "collectd-linux",
+  "description": "Collectd plugins for basic system metrology (all OS).",
+  "env_run_list": {},
+  "run_list": [],
+  "override_attributes": {},
+  "default_attributes": {
+    "linux_plugins": [
+      {"lvm": null},
+      {"vmem": [{"Verbose": false}]}
+    ]
+  }
+}

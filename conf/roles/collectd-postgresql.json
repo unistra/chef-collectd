@@ -1,0 +1,63 @@
+{
+  "chef_type": "role",
+  "json_class": "Chef::Role",
+  "name": "collectd-postgresql",
+  "description": "Collectd plugins for PostgreSQL metrology.",
+  "env_run_list": {},
+  "run_list": [],
+  "override_attributes": {},
+  "default_attributes": {
+    "postgresql_plugins": [
+      {
+        "processes": [
+          {
+            "ProcessMatch": [
+                "pg_writer postgres:.writer.process",
+                "pg_wal_writer postgres:.wal.writer.process",
+                "pg_autovacuum postgres:.*autovacuum",
+                "pg_stats_collector postgres:.stats.collector.process",
+                "pg_user_mail postgres:.user",
+                "pg_db_mail postgres:.[A-Za-z0-9]+.mail"
+            ]
+          }
+        ]
+      },
+      {
+        "write_graphite": [
+          {
+            "-Node:postgresql": [
+              {"Host": "graphite-test"},
+              {"Port": "2003"},
+              {"Protocol": "tcp"},
+              {"Prefix": "postgresql."},
+              {"LogSendErrors": true},
+              {"AlwaysAppendDS": false},
+              {"StoreRates": true},
+              {"EscapeCharacter": "_"}
+            ]
+          }
+        ]
+      }
+    ],
+    "postgresql_postcache": {
+      "rules": [
+        {
+          "-Rule:postgresql_processes": [
+            {
+              "-Match:regex": [
+                {"Plugin": "procesess"},
+                {"PluginInstance": "pg_.*"}
+              ]
+            },
+            {
+              "-Target:write": [
+                {"Plugin": "write_graphite/postgresql"}
+              ]
+            },
+            {"Target": "stop"}
+          ]
+        }
+      ]
+    }
+  }
+}

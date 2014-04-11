@@ -1,0 +1,105 @@
+{
+  "chef_type": "role",
+ "json_class": "Chef::Role",
+  "name": "collectd-system",
+  "description": "Collectd plugins for basic system metrology (all OS).",
+  "env_run_list": {},
+  "run_list": [],
+  "override_attributes": {},
+  "default_attributes": {
+    "system_plugins": [
+      {
+        "aggregation": [
+          {
+            "-Aggregation:cpu": [
+              {"Plugin": "cpu"},
+              {"PluginInstance": "/[0,2,4,6,8]$/"},
+              {"Type": "cpu"},
+              {"SetPlugin": "cpu"},
+              {"SetPluginInstance": "cpu"},
+              {"GroupBy": ["Host", "TypeInstance"]},
+              {"CalculateSum": false},
+              {"CalculateNum": false},
+              {"CalculateAverage": true},
+              {"CalculateMinimum": false},
+              {"CalculateMaximum": false},
+              {"CalculateStddev": false}
+            ]
+          }
+        ]
+      },
+      {"cpu": null},
+      {
+        "df": [
+          {
+            "FSType": [
+                "cgroup",
+                "devpts",
+                "devtmpfs",
+                "fusectl",
+                "proc",
+                "rootfs",
+                "sysfs",
+                "tmpgs"
+            ]
+          },
+          {"IgnoreSelected": true}
+        ]
+      },
+      {"disk": null},
+      {"entropy": null},
+      {"interface": null},
+      {"irq": null},
+      {"load": null},
+      {"memory": null},
+      {"processes": null},
+      {"swap": null},
+      {"users": null},
+      {
+        "write_graphite": [
+          {
+            "-Node:system": [
+              {"Host": "graphite-test"},
+              {"Port": "2003"},
+              {"Protocol": "tcp"},
+              {"Prefix": "system."},
+              {"LogSendErrors": true},
+              {"AlwaysAppendDS": false},
+              {"StoreRates": true},
+              {"EscapeCharacter": "_"}
+            ]
+          }
+        ]
+      }
+    ],
+    "system_precache": {},
+    "system_postcache": {
+      "plugins": ["match_regex"],
+      "rules": [
+        {
+          "-Rule:cpu_aggregation": [
+            {
+              "-Match:regex": [
+                {"Plugin": "cpu"},
+                {"PluginInstance": "^[0-9]+$"}
+              ]
+            },
+            {
+              "-Target:write": [
+                {"Plugin": "aggregation"}
+              ]
+            },
+            {"Target": "stop"}
+          ]
+        }
+      ],
+      "default": [
+        {
+          "-Target:write": [
+            {"Plugin": "write_graphite/system"}
+          ]
+        }
+      ]
+    }
+  }
+}

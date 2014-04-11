@@ -1,0 +1,70 @@
+{
+  "chef_type": "role",
+  "json_class": "Chef::Role",
+  "name": "collectd-slapd-write",
+  "description": "Collectd plugins for slapd master metrology.",
+  "env_run_list": {},
+  "run_list": [],
+  "override_attributes": {},
+  "default_attributes": {
+    "slapd-write_plugins": [
+      {
+        "tail": [
+          {
+            "-File:/var/log/slapd.log": [
+              {"Instance": "slapd"},
+              {
+                "-Match:add": [
+                  {"Instance": "add"},
+                  {"Regex": ".* ADD .*"},
+                  {"DSType": "CounterInc"},
+                  {"Type": "counter"}
+                ]
+              },
+              {
+                "-Match:delete": [
+                  {"Instance": "delete"},
+                  {"Regex": ".* DEL .*"},
+                  {"DSType": "CounterInc"},
+                  {"Type": "counter"}
+                ]
+              },
+              {
+                "-Match:update": [
+                  {"Instance": "update"},
+                  {"Regex": ".* MOD .*"},
+                  {"DSType": "CounterInc"},
+                  {"Type": "counter"}
+                ]
+              },
+              {
+                "-Match:move": [
+                  {"Instance": "move"},
+                  {"Regex": ".* MODRDN .*"},
+                  {"DSType": "CounterInc"},
+                  {"Type": "counter"}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "write_graphite": [
+          {
+            "-Node:slapd": [
+              {"Host": "graphite-test"},
+              {"Port": "2003"},
+              {"Protocol": "tcp"},
+              {"Prefix": "slapd."},
+              {"LogSendErrors": true},
+              {"AlwaysAppendDS": false},
+              {"StoreRates": true},
+              {"EscapeCharacter": "_"}
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

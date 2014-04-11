@@ -1,0 +1,95 @@
+{
+  "chef_type": "role",
+  "json_class": "Chef::Role",
+  "name": "collectd-slapd",
+  "description": "Collectd plugins for slapd metrology.",
+  "env_run_list": {},
+  "run_list": [],
+  "override_attributes": {},
+  "default_attributes": {
+    "slapd_plugins": [
+      {
+        "processes": [
+          {"ProcessMatch": "slapd /usr/sbin/slapd.*"}
+        ]
+      },
+      {
+        "tail": [
+          {
+            "-File:/var/log/slapd.log": [
+              {"Instance": "slapd"},
+              {
+                "-Match:conns": [
+                  {"Instance": "conns"},
+                  {"Regex": ".*\\sBIND\\s.*\\smech=.*"},
+                  {"DSType": "CounterInc"},
+                  {"Type": "counter"}
+                ]
+              },
+              {
+                "-Match:search": [
+                  {"Instance": "conns"},
+                  {"Regex": ".*\\sSRCH\\sbase=.*"},
+                  {"DSType": "CounterInc"},
+                  {"Type": "counter"}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "write_graphite": [
+          {
+            "-Node:slapd": [
+              {"Host": "graphite-test"},
+              {"Port": "2003"},
+              {"Protocol": "tcp"},
+              {"Prefix": "slapd."},
+              {"LogSendErrors": true},
+              {"AlwaysAppendDS": false},
+              {"StoreRates": true},
+              {"EscapeCharacter": "_"}
+            ]
+          }
+        ]
+      }
+    ],
+    "slapd_postcache": {
+      "rules": [
+        {
+          "-Rule:slapd_log": [
+            {
+              "-Match:regex": [
+                {"Plugin": "tail"},
+                {"PluginInstance": "slapd"}
+              ]
+            },
+            {
+              "-Target:write": [
+                {"Plugin": "write_graphite/slapd"}
+              ]
+            },
+            {"Target": "stop"}
+          ]
+        },
+        {
+          "-Rule:slapd_processes": [
+            {
+              "-Match:regex": [
+                {"Plugin": "procesess"},
+                {"PluginInstance": "slapd"}
+              ]
+            },
+            {
+              "-Target:write": [
+                {"Plugin": "write_graphite/slapd"}
+              ]
+            },
+            {"Target": "stop"}
+          ]
+        }
+      ]
+    }
+  }
+}
