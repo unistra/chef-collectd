@@ -25,7 +25,7 @@ if ['10.04', '12.04'].include? node['platform_version']
             'collectd_5.4.0-lucid1_amd64.deb'
         ]
     elsif node['platform_version'] == '12.04'
-        dependencies = ['libdbi1', 'librrd4']
+        dependencies = ['libdbi1', 'librrd4', 'libltdl7', 'liblvm2-dev']
         deb_files = [
             'collectd-core_5.4.0-precise1_amd64.deb',
             'collectd_5.4.0-precise1_amd64.deb'
