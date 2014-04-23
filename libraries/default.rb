@@ -1,3 +1,10 @@
+#
+# Cookbook Name:: collectd
+# Library:: default
+# Author:: François Ménabé
+# Description:: Library for generating configuration from attributes.
+#
+
 # Tabulation value in generated files.
 TAB = "    "
 
@@ -10,11 +17,11 @@ def get_collectd_conf(attributes)
     }
     attributes.each do |attr, value|
         # Merge global parameters.
-        merge_configs(collectd_config['params'], list2hash(value)) \
+        merge_configs(collectd_config['params'], hashify(value)) \
             if attr.end_with?('_params')
 
         # Merge plugins.
-        merge_configs(collectd_config['plugins'], list2hash(value)) \
+        merge_configs(collectd_config['plugins'], hashify(value)) \
             if attr.end_with?('_plugins')
 
         # Merge postcache and precache chains.
@@ -22,11 +29,11 @@ def get_collectd_conf(attributes)
             if attr.end_with?("_#{cache_type}")
                 merge_configs(
                    (collectd_config['chains'][cache_type]['rules'] ||= {}),
-                   list2hash(value['rules'])
+                   hashify(value['rules'])
                 ) if value.include?('rules')
                 merge_configs(
                     (collectd_config['chains'][cache_type]['default'] ||= {}),
-                    list2hash(value['default'])
+                    hashify(value['default'])
                 ) if value.include?('default')
 
                 if value.include?('plugins')
@@ -41,41 +48,77 @@ def get_collectd_conf(attributes)
     collectd_config
 end
 
+def hashify(config)
+    case config
+    # If config is a simple element (string, boolean), just return it.
+    when String, TrueClass, FalseClass
+        return config
+    # If config is a hash, recursively hashify values.
+    when Hash
+        Hash[config.map{|key, value| [key, hashify(value)]}]
+    # If config is an array, all element of the array must be of the same type.
+    # This allow to check the first element for knowing in which case we are.
+    # Values can be:
+    #   * strings: different values of an instruction (like 'ProcessMatch' of
+    #     the 'processes' plugin
+    #   * array: hack for allowing ordered hash (as JSON in chef database does
+    #     not keep order). Values of theses arrays are hash of one element.
+    #   * hash of one elements: manage the recursion of the previous case.
+    #   * hash: configurations for tag used multiple time (like 'Match' tag of
+    #     'tail' plugin).
+    when Array
+        case config[0]
+        when String
+            config
+        when Hash
+            if config[0].length > 1
+                config.map{|elt| hashify(elt)} \
+            else
+                Hash[config.map{|elt| elt.map{|key, value| [key, hashify(value)]}[0]}]
+            end
+        when Array
+            config.map{|elt| hashify(elt)}
+        end
+    end
+end
 
+
+# Deep merge two hash.
 def merge_configs(hash, other_hash)
     other_hash.each do |key, value|
         if !hash.include?(key) || hash[key].nil?
             hash[key] = value
-        elsif value.kind_of?(String)
-            hash[key] = [hash[key]] if hash[key].kind_of?(String)
-            hash[key].push(value) if !hash[key].include?(value)
-        elsif value.kind_of?(Array)
-            hash[key] = [hash[key]] if hash[key].kind_of?(String)
-            value.each{ |val|
-                hash[key].push(val) unless hash[key].include?(val)
-            }
-        elsif value.kind_of?(Hash)
+            next
+        end
+
+        case value
+        when String
+            if !hash[key].include?(value)
+                hash[key] = [hash[key]] if hash[key].kind_of?(String)
+                hash[key].push(value)
+            end
+        when Array
+            value.each do |elt|
+                if !hash[key].include?(elt)
+                    hash[key] = [hash[key]] if hash[key].kind_of?(String)
+                    hash[key].push(elt)
+                end
+            end
+        when Hash
             merge_configs(hash[key], value)
         end
     end
 end
 
 
-def list2hash(config)
-    hash = {}
-    config.each do |elt|
-        if elt.kind_of?(Hash)
-            elt.each do |key, value|
-                hash[key] = value.kind_of?(Array) ? list2hash(value) : value
-            end
-        else
-            return config.map{|elt| elt.kind_of?(Array) ? list2hash(elt) : elt}
-        end
-    end
-    hash
-end
-
-
+# Generate configuration. As the 'syslog' plugin is necessary for logging the
+# collectd daemon itself, it is automatically include in the configuration in
+# the main file. This main file also contain:
+#   * the global parameters
+#   * 'LoadPlugin' instructions,
+#   * files inclusions.
+# Each plugin having a configuration has its own configuration file and there
+# also a file for chains.
 def gen_conf(config)
     content = []
 
@@ -100,7 +143,7 @@ def gen_conf(config)
     content.concat(config['plugins'].keys().map{|plugin| "LoadPlugin #{plugin}"})
     content.push('')
 
-    # Generate plugins configurations
+
     config['plugins'].each do |name, conf|
         if !conf.nil?
             content.push("<Plugin \"#{name}\">")
