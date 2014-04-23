@@ -39,10 +39,16 @@
         ]
       },
       {
+        "tcpconns": [
+          {"ListeningPorts": false},
+          {"LocalPort": ["389", "636"]}
+        ]
+      },
+      {
         "write_graphite": [
           {
             "-Node:slapd": [
-              {"Host": "graphite-test"},
+              {"Host": "graphite"},
               {"Port": "2003"},
               {"Protocol": "tcp"},
               {"Prefix": "slapd."},
@@ -77,7 +83,7 @@
           "-Rule:slapd_processes": [
             {
               "-Match:regex": [
-                {"Plugin": "procesess"},
+                {"Plugin": "processes"},
                 {"PluginInstance": "slapd"}
               ]
             },

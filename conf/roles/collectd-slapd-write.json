@@ -49,7 +49,7 @@
         "write_graphite": [
           {
             "-Node:slapd": [
-              {"Host": "graphite-test"},
+              {"Host": "graphite"},
               {"Port": "2003"},
               {"Protocol": "tcp"},
               {"Prefix": "slapd."},

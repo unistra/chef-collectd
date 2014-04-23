@@ -16,7 +16,7 @@
               {"PluginInstance": "/[0,2,4,6,8]$/"},
               {"Type": "cpu"},
               {"SetPlugin": "cpu"},
-              {"SetPluginInstance": "cpu"},
+              {"SetPluginInstance": ""},
               {"GroupBy": ["Host", "TypeInstance"]},
               {"CalculateSum": false},
               {"CalculateNum": false},
@@ -40,10 +40,11 @@
                 "proc",
                 "rootfs",
                 "sysfs",
-                "tmpgs"
+                "tmpfs"
             ]
           },
-          {"IgnoreSelected": true}
+          {"IgnoreSelected": true},
+          {"ReportInodes": true}
         ]
       },
       {"disk": null},
@@ -59,7 +60,7 @@
         "write_graphite": [
           {
             "-Node:system": [
-              {"Host": "graphite-test"},
+              {"Host": "graphite"},
               {"Port": "2003"},
               {"Protocol": "tcp"},
               {"Prefix": "system."},

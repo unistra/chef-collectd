@@ -26,7 +26,7 @@
         "write_graphite": [
           {
             "-Node:postgresql": [
-              {"Host": "graphite-test"},
+              {"Host": "graphite"},
               {"Port": "2003"},
               {"Protocol": "tcp"},
               {"Prefix": "postgresql."},
