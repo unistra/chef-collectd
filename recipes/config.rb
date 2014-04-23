@@ -14,7 +14,8 @@ if node['platform'] == 'ubuntu' && node['platform_version'] == '10.04'
 end
 
 # Remove everything in the directory except the configuration file.
-execute('find /etc/collectd/* -not -name collectd.conf -exec rm -rf {} \;')
+execute('find /etc/collectd/* -type d -not -name collectd.conf | xargs rm -rf')
+execute('find /etc/collectd/* -type f -not -name collectd.conf | xargs rm -rf')
 
 # Deploy configuration file and restart service if there is any change.
 service('collectd') { action :nothing }
