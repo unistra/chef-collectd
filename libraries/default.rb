@@ -51,7 +51,17 @@ end
 def hashify(config)
     case config
     # If config is a simple element (string, boolean), just return it.
-    when String, TrueClass, FalseClass
+    when String
+        # This allow to get datas from encrypted databags.
+        if config.start_with?('$DATABAG')
+            bag, item, *values = config.scan(/\[[^\[\]]*\]/).map{|elt| elt[1..-2]}
+            config = Chef::EncryptedDataBagItem.load(bag, item)
+            values.each { |val|
+                config = config[val.start_with?('$') ? node[val[1..-1]] : val]
+            }
+        end
+        return config
+    when TrueClass, FalseClass
         return config
     # If config is a hash, recursively hashify values.
     when Hash
