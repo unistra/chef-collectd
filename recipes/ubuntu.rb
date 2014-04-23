@@ -43,7 +43,7 @@ if ['10.04', '12.04'].include? node['platform_version']
             action :install
         end
     end
-elsif ['14.04'].include? node['plateform_version']
+elsif ['14.04'].include? node['platform_version']
     package('collectd') { action :install }
 else
     Chef::Log.error("Unsupported Ubuntu version!")
