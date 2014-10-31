@@ -61,7 +61,7 @@ def hashify(config)
             }
         end
         return config
-    when TrueClass, FalseClass
+    when TrueClass, FalseClass, Integer
         return config
     # If config is a hash, recursively hashify values.
     when Hash
@@ -210,7 +210,7 @@ def gen_block(conf, level=1)
             if value.kind_of?(String)
                 result.push(
                     "#{TAB * level}#{attr} \"#{value.split().join('" "')}\"")
-            elsif value.kind_of?(TrueClass) or value.kind_of?(FalseClass)
+            elsif value.kind_of?(TrueClass) or value.kind_of?(FalseClass) or value.kind_of?(Integer)
                 result.push("#{TAB * level}#{attr} #{value}")
             elsif value.kind_of?(Array)
                 result.concat(value.map{|val|
