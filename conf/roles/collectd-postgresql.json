@@ -23,6 +23,12 @@
         ]
       },
       {
+        "tcpconns": [
+          {"ListeningPorts": false},
+          {"LocalPort": "5432"}
+        ]
+      },
+      {
         "write_graphite": [
           {
             "-Node:postgresql": [
@@ -45,7 +51,7 @@
           "-Rule:postgresql_processes": [
             {
               "-Match:regex": [
-                {"Plugin": "procesess"},
+                {"Plugin": "processes"},
                 {"PluginInstance": "pg_.*"}
               ]
             },

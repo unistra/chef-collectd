@@ -1,6 +1,6 @@
 {
   "chef_type": "role",
- "json_class": "Chef::Role",
+  "json_class": "Chef::Role",
   "name": "collectd-system",
   "description": "Collectd plugins for basic system metrology (all OS).",
   "env_run_list": {},
