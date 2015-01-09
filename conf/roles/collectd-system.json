@@ -13,7 +13,6 @@
           {
             "-Aggregation:cpu": [
               {"Plugin": "cpu"},
-              {"PluginInstance": "/[0,2,4,6,8]$/"},
               {"Type": "cpu"},
               {"SetPlugin": "cpu"},
               {"SetPluginInstance": ""},
