@@ -111,6 +111,7 @@ def merge_configs(hash, other_hash)
             value.each do |elt|
                 if !hash[key].include?(elt)
                     hash[key] = [hash[key]] if hash[key].kind_of?(String)
+                    hash[key] = hash[key].dup if hash[key].kind_of?(Chef::Node::ImmutableArray)
                     hash[key].push(elt)
                 end
             end
