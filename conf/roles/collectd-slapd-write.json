@@ -7,60 +7,27 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "slapd-write_plugins": [
-      {
-        "tail": [
-          {
-            "-File:/var/log/slapd.log": [
-              {"Instance": "slapd"},
-              {
-                "-Match": [
-                  [
-                    {"Instance": "add"},
-                    {"Regex": ".*\\sADD\\s.*"},
-                    {"DSType": "CounterInc"},
-                    {"Type": "counter"}
-                  ],
-                  [
-                    {"Instance": "delete"},
-                    {"Regex": ".*\\sDEL\\s.*"},
-                    {"DSType": "CounterInc"},
-                    {"Type": "counter"}
-                  ],
-                  [
-                    {"Instance": "update"},
-                    {"Regex": ".*\\sMOD\\s.*"},
-                    {"DSType": "CounterInc"},
-                    {"Type": "counter"}
-                  ],
-                  [
-                    {"Instance": "move"},
-                    {"Regex": ".*\\sMODRDN\\s.*"},
-                    {"DSType": "CounterInc"},
-                    {"Type": "counter"}
-                  ]
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "write_graphite": [
-          {
-            "-Node:slapd": [
-              {"Host": "graphite"},
-              {"Port": "2003"},
-              {"Protocol": "tcp"},
-              {"Prefix": "slapd."},
-              {"LogSendErrors": true},
-              {"AlwaysAppendDS": false},
-              {"StoreRates": true},
-              {"EscapeCharacter": "_"}
-            ]
-          }
-        ]
-      }
-    ]
+    "collectd_plugins": {
+      "tail": {
+        "-File:/var/log/slapd.log":
+          [["Instance", "slapd"],
+           ["-Match",
+            [[["Instance", "add"],
+              ["Regex", "\\\\sADD\\\\s"],
+              ["DSType", "CounterInc"],
+              ["Type", "counter"]],
+             [["Instance", "delete"],
+              ["Regex", "\\\\sDEL\\\\s"],
+              ["DSType", "CounterInc"],
+              ["Type", "counter"]],
+             [["Instance", "update"],
+              ["Regex", "\\\\sMOD\\\\s"],
+              ["DSType", "CounterInc"],
+              ["Type", "counter"]],
+             [["Instance", "move"],
+              ["Regex", "\\\\sMODRDN\\\\s"],
+              ["DSType", "CounterInc"],
+              ["Type", "counter"]]]]]}
+    }
   }
 }

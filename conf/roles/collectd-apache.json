@@ -7,52 +7,25 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "apache_plugins": [
-      {
-        "apache": [
-          {
-            "-Instance:apache": [
-              {"URL": "http://localhost/status?auto"}
-            ]
-          }
-        ]
-      },
-      {
-        "write_graphite": [
-          {
-            "-Node:apache": [
-              {"Host": "graphite"},
-              {"Port": "2003"},
-              {"Protocol": "tcp"},
-              {"Prefix": "apache."},
-              {"LogSendErrors": true},
-              {"AlwaysAppendDS": false},
-              {"StoreRates": true},
-              {"EscapeCharacter": "_"}
-            ]
-          }
-        ]
-      }
-    ],
-    "apache_postcache": {
-      "rules": [
-        {
-          "-Rule:apache": [
-            {
-              "-Match:regex": [
-                {"Plugin": "apache"},
-                {"PluginInstance": "apache"}
-              ]
-            },
-            {
-              "-Target:write": [
-                {"Plugin": "write_graphite/apache"}
-              ]
-            },
-            {"Target": "stop"}
-          ]
-        }
-      ]
+    "collectd_plugins": {
+      "apache": {"-Instance:apache": {"URL": "http://localhost/status?auto"}},
+      "write_graphite": {
+        "-Node:apache":
+          [["Host", "graphite"],
+           ["Port", "2003"],
+           ["Protocol", "tcp"],
+           ["Prefix", "apache."],
+           ["LogSendErrors", true],
+           ["AlwaysAppendDS", false],
+           ["StoreRates", true],
+           ["EscapeCharacter", "_"]]}
+    },
+    "collectd_postcache": {
+      "rules":
+        [["-Rule:apache",
+          [["-Match:regex", [["Plugin", "apache"], ["PluginInstance", "apache"]]],
+           ["-Target:write", {"Plugin": "write_graphite/apache"}],
+           ["Target", "stop"]]]]
     }
   }
 }

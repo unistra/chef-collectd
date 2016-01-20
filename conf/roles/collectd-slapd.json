@@ -7,95 +7,44 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "slapd_plugins": [
-      {
-        "processes": [
-          {"ProcessMatch": "slapd /usr/sbin/slapd.*"}
-        ]
-      },
-      {
-        "tail": [
-          {
-            "-File:/var/log/slapd.log": [
-              {"Instance": "slapd"},
-              {
-                "-Match": [
-                  [
-                    {"Instance": "conns"},
-                    {"Regex": ".*\\sBIND\\s.*\\smech=.*"},
-                    {"DSType": "CounterInc"},
-                    {"Type": "counter"}
-                  ],
-                  [
-                    {"Instance": "search"},
-                    {"Regex": ".*\\sSRCH\\sbase=.*"},
-                    {"DSType": "CounterInc"},
-                    {"Type": "counter"}
-                  ]
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "tcpconns": [
-          {"ListeningPorts": false},
-          {"LocalPort": ["389", "636"]}
-        ]
-      },
-      {
-        "write_graphite": [
-          {
-            "-Node:slapd": [
-              {"Host": "graphite"},
-              {"Port": "2003"},
-              {"Protocol": "tcp"},
-              {"Prefix": "slapd."},
-              {"LogSendErrors": true},
-              {"AlwaysAppendDS": false},
-              {"StoreRates": true},
-              {"EscapeCharacter": "_"}
-            ]
-          }
-        ]
-      }
-    ],
-    "slapd_postcache": {
-      "rules": [
-        {
-          "-Rule:slapd_log": [
-            {
-              "-Match:regex": [
-                {"Plugin": "tail"},
-                {"PluginInstance": "slapd"}
-              ]
-            },
-            {
-              "-Target:write": [
-                {"Plugin": "write_graphite/slapd"}
-              ]
-            },
-            {"Target": "stop"}
-          ]
-        },
-        {
-          "-Rule:slapd_processes": [
-            {
-              "-Match:regex": [
-                {"Plugin": "processes"},
-                {"PluginInstance": "slapd"}
-              ]
-            },
-            {
-              "-Target:write": [
-                {"Plugin": "write_graphite/slapd"}
-              ]
-            },
-            {"Target": "stop"}
-          ]
-        }
-      ]
+    "collectd_plugins": {
+      "processes": {"ProcessMatch": "slapd /usr/sbin/slapd.*"},
+      "tail": {
+        "-File:/var/log/slapd.log":
+          [["Instance", "slapd"],
+           ["-Match",
+            [[["Instance", "conns"],
+              ["Regex", "\\\\sBIND\\\\s.*mech="],
+              ["DSType", "CounterInc"],
+              ["Type", "counter"]],
+             [["Instance", "search"],
+              ["Regex", "\\\\sSRCH\\\\sbase="],
+              ["DSType", "CounterInc"],
+              ["Type", "counter"]]]]]},
+      "tcpconns":
+        [["ListeningPorts", false],
+         ["LocalPort", ["389", "636"]]],
+      "write_graphite":
+        {"-Node:slapd":
+          [["Host", "graphite"],
+           ["Port", "2003"],
+           ["Protocol", "tcp"],
+           ["Prefix", "slapd."],
+           ["LogSendErrors", true],
+           ["AlwaysAppendDS", false],
+           ["StoreRates", true],
+           ["EscapeCharacter", "_"]]}
+    },
+    "collectd_postcache": {
+      "rules":
+        [["-Rule:slapd_log",
+          [["-Match:regex", [["Plugin", "tail"], ["PluginInstance", "slapd"]]],
+           ["-Target:write", {"Plugin": "write_graphite/slapd"}],
+           ["Target", "stop"]]],
+         ["-Rule:slapd_processes",
+          [["-Match:regex", [["Plugin", "processes"], ["PluginInstance", "slapd"]]],
+           ["-Target:write", {"Plugin": "write_graphite/slapd"}],
+           ["Target", "stop"]]]]
     }
   }
 }

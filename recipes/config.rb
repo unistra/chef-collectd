@@ -5,24 +5,36 @@
 # Description:: Configure collectd.
 #
 
+
 # Get collectd configuration (main params, plugins, chains).
-collectd_conf = get_collectd_conf(node.to_hash)
+Chef::Log.info("get configuration from attributes")
+files = get_collectd_conf(convert(node.to_hash))
 
-# Hack because lucid package as not be compiled with lvm library.
-if node['platform'] == 'ubuntu' && node['platform_version'] == '10.04'
-    collectd_conf['plugins'].delete('lvm')
+# Remove everything in the directory except our configuration files.
+ruby_block 'remove_unused_files' do
+    block do
+        cur_files = Dir.entries('/etc/collectd')
+                       .select{ |path| path != '.' && path != '..' }
+                       .map{ |path| "/etc/collectd/#{path}" }
+        cur_files.each do |filepath|
+            Chef::Log.info(filepath)
+            if !files.include?(filepath)
+                Chef::Log.info("removing '#{filepath}'")
+                FileUtils.remove_entry(filepath)
+            end
+        end
+    end
+    action :run
 end
-
-# Remove everything in the directory except the configuration file.
-execute('find /etc/collectd/* -type d -not -name collectd.conf | xargs rm -rf')
-execute('find /etc/collectd/* -type f -not -name collectd.conf | xargs rm -rf')
 
 # Deploy configuration file and restart service if there is any change.
 service('collectd') { action :nothing }
-file '/etc/collectd/collectd.conf' do
-    mode '0644'
-    owner 'root'
-    group 'root'
-    content gen_conf(collectd_conf)
-    notifies :restart, "service[collectd]", :immediately
+files.each do |filepath, content|
+    file filepath do
+        mode '0644'
+        owner 'root'
+        group 'root'
+        content content
+        notifies :restart, "service[collectd]", :delayed
+    end
 end

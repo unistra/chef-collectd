@@ -7,9 +7,9 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "linux_plugins": [
-      {"lvm": null},
-      {"vmem": [{"Verbose": false}]}
-    ]
+    "collectd_plugins": {
+      "lvm": null,
+      "vmem": {"Verbose": false}
+    }
   }
 }

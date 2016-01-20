@@ -7,43 +7,25 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "nginx_plugins": [
-      {
-        "nginx": [{"URL": "http://localhost/status"}]
-      },
-      {
-        "write_graphite": [
-          {
-            "-Node:nginx": [
-              {"Host": "graphite"},
-              {"Port": "2003"},
-              {"Protocol": "tcp"},
-              {"Prefix": "nginx."},
-              {"LogSendErrors": true},
-              {"AlwaysAppendDS": false},
-              {"StoreRates": true},
-              {"EscapeCharacter": "_"}
-            ]
-          }
-        ]
-      }
-    ],
-    "nginx_postcache": {
-      "rules": [
-        {
-          "-Rule:nginx": [
-            {
-              "-Match:regex": [{"Plugin": "nginx"}]
-            },
-            {
-              "-Target:write": [
-                {"Plugin": "write_graphite/nginx"}
-              ]
-            },
-            {"Target": "stop"}
-          ]
-        }
-      ]
+    "collectd_plugins": {
+      "nginx": {"URL": "http://localhost/status"},
+      "write_graphite":
+        {"-Node:nginx":
+          [["Host", "graphite"],
+           ["Port", "2003"],
+           ["Protocol", "tcp"],
+           ["Prefix", "nginx."],
+           ["LogSendErrors", true],
+           ["AlwaysAppendDS", false],
+           ["StoreRates", true],
+           ["EscapeCharacter", "_"]]}
+    },
+    "collectd_postcache": {
+      "rules":
+        [["-Rule:nginx",
+          [["-Match:regex", {"Plugin": "nginx"}],
+           ["-Target:write", {"Plugin": "write_graphite/nginx"}],
+           ["Target", "stop"]]]]
     }
   }
 }

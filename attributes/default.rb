@@ -1,3 +1,3 @@
-default['_params'] = [
+default['collectd_params'] = [
     {'FQDNLookup' => false}
 ]

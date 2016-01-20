@@ -7,99 +7,60 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "system_plugins": [
-      {
-        "aggregation": [
-          {
-            "-Aggregation:cpu": [
-              {"Plugin": "cpu"},
-              {"Type": "cpu"},
-              {"SetPlugin": "cpu"},
-              {"SetPluginInstance": ""},
-              {"GroupBy": ["Host", "TypeInstance"]},
-              {"CalculateSum": false},
-              {"CalculateNum": false},
-              {"CalculateAverage": true},
-              {"CalculateMinimum": false},
-              {"CalculateMaximum": false},
-              {"CalculateStddev": false}
-            ]
-          }
-        ]
-      },
-      {"cpu": null},
-      {
-        "df": [
-          {
-            "FSType": [
-                "cgroup",
-                "devpts",
-                "devtmpfs",
-                "fusectl",
-                "proc",
-                "rootfs",
-                "sysfs",
-                "tmpfs"
-            ]
-          },
-          {"IgnoreSelected": true},
-          {"ReportInodes": true}
-        ]
-      },
-      {"disk": null},
-      {"entropy": null},
-      {"interface": null},
-      {"irq": null},
-      {"load": null},
-      {"memory": null},
-      {"processes": null},
-      {"swap": null},
-      {"users": null},
-      {
-        "write_graphite": [
-          {
-            "-Node:system": [
-              {"Host": "graphite"},
-              {"Port": "2003"},
-              {"Protocol": "tcp"},
-              {"Prefix": "system."},
-              {"LogSendErrors": true},
-              {"AlwaysAppendDS": false},
-              {"StoreRates": true},
-              {"EscapeCharacter": "_"}
-            ]
-          }
-        ]
-      }
-    ],
-    "system_precache": {},
-    "system_postcache": {
+    "collectd_params": {
+      "FQDNLookup": false
+    },
+    "collectd_plugins": {
+      "aggregation":
+        [["-Aggregation:cpu",
+          [["Plugin", "cpu"],
+           ["Type", "cpu"],
+           ["SetPlugin", "cpu"],
+           ["SetPluginInstance", ""],
+           ["GroupBy", ["Host", "TypeInstance"]],
+           ["CalculateSum", false],
+           ["CalculateNum", false],
+           ["CalculateAverage", true],
+           ["CalculateMinimum", false],
+           ["CalculateMaximum", false],
+           ["CalculateStddev", false]]]],
+      "cpu": null,
+      "df":
+        [["FSType",
+          ["cgroup", "devpts", "devtmpfs", "fusectl", "proc", "rootfs", "sysfs", "tmpfs" ]],
+         ["IgnoreSelected", true],
+         ["ReportInodes", true]],
+      "disk": null,
+      "entropy": null,
+      "interface": null,
+      "irq": null,
+      "load": null,
+      "memory": null,
+      "processes": null,
+      "swap": null,
+      "users": null,
+      "write_graphite":
+        {"-Node:system":
+          [["Host", "graphite"],
+           ["Port", "2003"],
+           ["Protocol", "tcp"],
+           ["Prefix", "system."],
+           ["LogSendErrors", true],
+           ["AlwaysAppendDS", false],
+           ["StoreRates", true],
+           ["EscapeCharacter", "_"]]}
+    },
+    "collectd_precache": {},
+    "collectd_postcache": {
       "plugins": ["match_regex"],
-      "rules": [
-        {
-          "-Rule:cpu_aggregation": [
-            {
-              "-Match:regex": [
-                {"Plugin": "cpu"},
-                {"PluginInstance": "^[0-9]+$"}
-              ]
-            },
-            {
-              "-Target:write": [
-                {"Plugin": "aggregation"}
-              ]
-            },
-            {"Target": "stop"}
-          ]
-        }
-      ],
-      "default": [
-        {
-          "-Target:write": [
-            {"Plugin": "write_graphite/system"}
-          ]
-        }
-      ]
+      "rules":
+        [["-Rule:cpu_aggregation",
+          [["-Match:regex", [["Plugin", "cpu"], ["PluginInstance", "^[0-9]+$"]]],
+           ["-Target:write", {"Plugin": "aggregation"}],
+           ["Target", "stop"]]]],
+      "default": {
+        "-Target:write": {"Plugin": "write_graphite/system"}
+      }
     }
   }
 }

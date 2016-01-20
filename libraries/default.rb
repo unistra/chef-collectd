@@ -5,122 +5,135 @@
 # Description:: Library for generating configuration from attributes.
 #
 
+require 'pp'
+require 'chef/mixin/deep_merge'
+
 # Tabulation value in generated files.
 TAB = "    "
 
+SYSLOG_CONF = %Q{
+LoadPlugin syslog
+<Plugin "syslog">
+#{TAB}LogLevel "info"
+</Plugin>
 
-def get_collectd_conf(attributes)
-    collectd_config = {
-        'params'    => {},
-        'plugins'   => {},
-        'chains'    => {'plugins' => [], 'precache' => {}, 'postcache' => {}}
-    }
-    attributes.each do |attr, value|
-        # Merge global parameters.
-        merge_configs(collectd_config['params'], hashify(value)) \
-            if attr.end_with?('_params')
+}
 
-        # Merge plugins.
-        merge_configs(collectd_config['plugins'], hashify(value)) \
-            if attr.end_with?('_plugins')
+CONF_DIR = "/etc/collectd"
+CONF_FILE = "#{CONF_DIR}/collectd.conf"
+TYPES = {'ubuntu' => '/usr/share/collectd/types.db'}
+CUSTOM_TYPES = "#{CONF_DIR}/types.db.custom"
 
-        # Merge postcache and precache chains.
-        ['precache', 'postcache'].each do |cache_type|
-            if attr.end_with?("_#{cache_type}")
-                merge_configs(
-                   (collectd_config['chains'][cache_type]['rules'] ||= {}),
-                   hashify(value['rules'])
-                ) if value.include?('rules')
-                merge_configs(
-                    (collectd_config['chains'][cache_type]['default'] ||= {}),
-                    hashify(value['default'])
-                ) if value.include?('default')
-
-                if value.include?('plugins')
-                    value['plugins'].each do |plugin|
-                        collectd_config['chains']['plugins'].push(plugin) \
-                            unless collectd_config['chains']['plugins'].include?(plugin)
-                    end
-                end
-            end
+# Recursively convert ImmutableArray to Array (so we can merge later).
+def convert(node)
+    attributes = {}
+    node.each do |attr, value|
+        case value
+        when Hash
+            attributes[attr] = convert(value)
+        when Chef::Node::ImmutableArray
+            attributes[attr] = value.dup
+        else
+            attributes[attr] = value
         end
     end
-    collectd_config
+    attributes
+end
+
+# Merge configuration from roles and node.
+def get_collectd_conf(attributes)
+    config = {'params'      => attributes.delete('collectd_params') || {},
+              'loadparams'  => attributes.delete('collectd_loadparams') || {},
+              'plugins'     => hashify(attributes.delete('collectd_plugins') || {}),
+              'precache'    => hashify(attributes.delete('collectd_precache') || {}),
+              'postcache'   => hashify(attributes.delete('collectd_postcache') || {})}
+    types = attributes.delete('collectd_types') || {}
+
+    attributes.each do |attr, value|
+        case
+        when attr.start_with?('collectd_params')
+            config['params'] = Chef::Mixin::DeepMerge.deep_merge!(value, config['params'])
+        when attr.start_with?('collectd_loadparams')
+            config['loadparams'] = Chef::Mixin::DeepMerge.deep_merge!(value, config['loadparams'])
+        when attr.start_with?('collectd_plugins')
+            config['plugins'] = Chef::Mixin::DeepMerge.deep_merge(hashify(value),
+                                                                  config['plugins'])
+        when attr.start_with?('collectd_precache')
+            config['precache'] = Chef::Mixin::DeepMerge.deep_merge(hashify(value),
+                                                                   config['precache'])
+        when attr.start_with?('collectd_postcache')
+            config['postcache'] = Chef::Mixin::DeepMerge.deep_merge(hashify(value),
+                                                                    config['postcache'])
+        when attr.start_with?('collectd_types')
+            types = Chef::Mixin::DeepMerge.deep_merge(value, types)
+        end
+    end
+
+    # Hack because lucid package has not be compiled with lvm library.
+    if node['platform'] == 'ubuntu' && node['platform_version'] == '10.04'
+        config['plugins'].delete('lvm')
+    end
+
+    if !types.empty?
+        config['params'].update({'TypesDB' => [TYPES[node['platform']],
+                                               '/etc/collectd/types.db.custom']})
+        files = {CONF_FILE => gen_conf(config), CUSTOM_TYPES => gen_types(types)}
+    else
+        files = {CONF_FILE => gen_conf(config)}
+    end
+
+    files
 end
 
 def hashify(config)
     case config
     # If config is a simple element (string, boolean), just return it.
-    when String
+    when String, Integer
         # This allow to get datas from encrypted databags.
         if config.start_with?('$DATABAG')
             bag, item, *values = config.scan(/\[[^\[\]]*\]/).map{|elt| elt[1..-2]}
             config = Chef::EncryptedDataBagItem.load(bag, item)
-            values.each { |val|
-                config = config[val.start_with?('$') ? node[val[1..-1]] : val]
-            }
+            values.each { |val| config = config[val.start_with?('$') ? node[val[1..-1]] : val] }
         end
-        return config
-    when TrueClass, FalseClass, Integer
-        return config
+        config
+    when TrueClass, FalseClass
+        config
     # If config is a hash, recursively hashify values.
-    when Hash
+    when Hash || Mash
         Hash[config.map{|key, value| [key, hashify(value)]}]
-    # If config is an array, all element of the array must be of the same type.
-    # This allow to check the first element for knowing in which case we are.
-    # Values can be:
-    #   * strings: different values of an instruction (like 'ProcessMatch' of
-    #     the 'processes' plugin
-    #   * array: hack for allowing ordered hash (as JSON in chef database does
-    #     not keep order). Values of theses arrays are hash of one element.
-    #   * hash of one elements: manage the recursion of the previous case.
-    #   * hash: configurations for tag used multiple time (like 'Match' tag of
-    #     'tail' plugin).
     when Array
         case config[0]
-        when String
-            config
         when Hash
-            if config[0].length > 1
-                config.map{|elt| hashify(elt)} \
-            else
-                Hash[config.map{|elt| elt.map{|key, value| [key, hashify(value)]}[0]}]
-            end
+             # Recursively hashify.
+             Hash[config.map{ |key, value| [key, hashify(value)] }]
         when Array
-            config.map{|elt| hashify(elt)}
-        end
-    end
-end
-
-
-# Deep merge two hash.
-def merge_configs(hash, other_hash)
-    other_hash.each do |key, value|
-        if !hash.include?(key) || hash[key].nil?
-            hash[key] = value
-            next
-        end
-
-        case value
-        when String
-            if !hash[key].include?(value)
-                hash[key] = [hash[key]] if hash[key].kind_of?(String)
-                hash[key].push(value)
-            end
-        when Array
-            value.each do |elt|
-                if !hash[key].include?(elt)
-                    hash[key] = [hash[key]] if hash[key].kind_of?(String)
-                    hash[key] = hash[key].dup if hash[key].kind_of?(Chef::Node::ImmutableArray)
-                    hash[key].push(elt)
+            # An array of tuples is a hash so we transform the array to a
+            # hash and recursively hashify values.
+            if config[0].length == 2
+                # Hack for managing the case when the key is present multiple times!
+                hash = Hash.new
+                config.each do |key, value|
+                    value = hashify(value)
+                    if hash[key].nil?
+                        hash[key] = value
+                    else
+                        case hash[key]
+                        when Array
+                            hash[key].concat(value)
+                        when Hash
+                            hash[key].merge!(value)
+                        end
+                    end
                 end
+                hash
+            else
+                config.map{ |elt| hashify(elt) }
             end
-        when Hash
-            merge_configs(hash[key], value)
+        else
+            config
         end
     end
 end
-
 
 # Generate configuration. As the 'syslog' plugin is necessary for logging the
 # collectd daemon itself, it is automatically include in the configuration in
@@ -134,93 +147,115 @@ def gen_conf(config)
     content = []
 
     # Generate global parameters.
-    content.concat(config['params'].map{|param, value| "#{param} #{value}"})
-    content.push('')
+    content.concat(gen_block(config['params'], level=0))
 
     # Plugins which provide logging functions should be loaded first, so log
     # messages generated when loading or configuring other plugins can be
     # accessed.
-    content.concat([
-        "LoadPlugin syslog",
-        "",
-        "<Plugin \"syslog\">",
-        "#{TAB}LogLevel \"info\"",
-        "</Plugin>",
-        "",
-        ""
-    ])
+    content.push(SYSLOG_CONF)
 
     # Load plugins.
-    content.concat(config['plugins'].keys().map{|plugin| "LoadPlugin #{plugin}"})
+    loadplugin = Hash[config['plugins'].keys().map{ |plugin| [plugin, nil] }]
+    loadplugin.merge!(config['loadparams'])
+    loadplugin.sort.each do |plugin, conf|
+        if conf.nil?
+            content.push("LoadPlugin \"#{plugin}\"")
+        else
+            content.push("<LoadPlugin \"#{plugin}\">")
+            content.concat(conf.map{ |param, value| "#{TAB} #{param} #{value}" })
+            content.push("</LoadPlugin>")
+        end
+    end
     content.push('')
 
+    # Configure plugins.
+    config['plugins'].sort.each do |name, conf|
+        next if conf.nil?
 
-    config['plugins'].each do |name, conf|
-        if !conf.nil?
-            content.push("<Plugin \"#{name}\">")
-            content.concat(gen_block(conf))
-            content.push("</Plugin>")
-            content.push("")
-        end
+        content.push("<Plugin \"#{name}\">")
+        content.concat(gen_block(conf))
+        content.push("</Plugin>")
+        content.push("")
     end
     content.push("")
 
     # Generate filters.
-    content.concat(config['chains']['plugins'].map{|plugin| "LoadPlugin #{plugin}"})
-    if !config['chains']['precache'].empty?
-        precache_config = config['chains']['precache']
-        content.push("<Chain \"PreCache\">")
-        content.concat(gen_block(precache_config['rules'], level=1)) \
-            if precache_config.include?('rules')
-        content.concat(gen_block(precache_config['default'], level=1)) \
-            if precache_config.include?('default')
-        content.push("</Chain>")
-    end
-    if !config['chains']['postcache'].empty?
-        postcache_config = config['chains']['postcache']
-        content.push("<Chain \"PostCache\">")
-        content.concat(gen_block(postcache_config['rules'], level=1)) \
-            if postcache_config.include?('rules')
-        content.concat(gen_block(postcache_config['default'], level=1)) \
-            if postcache_config.include?('default')
-       content.push("</Chain>")
-    end
+    chains_loadplugin = (config['precache'].fetch('plugins', [])
+                         .concat(config['postcache'].fetch('plugins', []))
+                         .uniq)
+    content.concat(chains_loadplugin.map{|plugin| "LoadPlugin #{plugin}"})
     content.push("")
+
+    if !config['precache'].empty?
+        content.push("<Chain \"PreCache\">")
+        content.concat(gen_block(config['precache']['rules'], level=1)) \
+            if config['precache'].include?('rules')
+        content.concat(gen_block(config['precache']['default'], level=1)) \
+            if config['precache'].include?('default')
+        content.push("</Chain>")
+        content.push("")
+    end
+
+   if !config['postcache'].empty?
+        content.push("<Chain \"PostCache\">")
+        content.concat(gen_block(config['postcache']['rules'], level=1)) \
+            if config['postcache'].include?('rules')
+        content.concat(gen_block(config['postcache']['default'], level=1)) \
+            if config['postcache'].include?('default')
+        content.push("</Chain>")
+        content.push("")
+    end
 
     content.join("\n")
 end
 
-
 def gen_block(conf, level=1)
+    def format_line(level, attr, value)
+        if value.kind_of?(String) && !value.start_with?('"') && !value.end_with?('"')
+            value = "\"#{value.split().join('" "')}\""
+        end
+        "#{TAB * level}#{attr} #{value}"
+    end
+
     result = []
     conf.each do |attr, value|
         if attr.start_with?('-')
             balise, name = attr[1..-1].split(':')
             if name.nil? || name.empty?
-                value.each do |elt|
-                    result.push("#{TAB * level}<#{balise}>")
-                    result.concat(gen_block(elt, level + 1))
-                    result.push("#{TAB * level}</#{balise}>")
+                start_tag = "#{TAB * level}<#{balise}>"
+            else
+                start_tag = "#{TAB * level}<#{balise} \"#{name}\">"
+            end
+            end_tag = "#{TAB * level}</#{balise}>"
+
+            if value.kind_of?(Array)
+                value.each do |val|
+                    result.push(start_tag)
+                    result.concat(gen_block(val, level + 1))
+                    result.push(end_tag)
                 end
             else
-                result.push("#{TAB * level}<#{balise} \"#{name}\">")
+                result.push(start_tag)
                 result.concat(gen_block(value, level + 1))
-                result.push("#{TAB * level}</#{balise}>")
+                result.push(end_tag)
+            end
+        elsif value.kind_of?(Array)
+            value.map do |val|
+                case val
+                when Hash || Mash
+                    result.concat(gen_block(val, level + 1))
+                else
+                    result.push(format_line(level, attr, val))
+                end
             end
         else
-            if value.kind_of?(String)
-                result.push(
-                    "#{TAB * level}#{attr} \"#{value.split().join('" "')}\"")
-            elsif value.kind_of?(TrueClass) or value.kind_of?(FalseClass) or value.kind_of?(Integer)
-                result.push("#{TAB * level}#{attr} #{value}")
-            elsif value.kind_of?(Array)
-                result.concat(value.map{|val|
-                    val.kind_of?(TrueClass) || val.kind_of?(FalseClass) \
-                        ? "#{TAB * level}#{attr} #{val}" \
-                        : "#{TAB * level}#{attr} \"#{val.split().join('" "')}\""
-                })
-            end
+            result.push(format_line(level, attr, value))
         end
     end
     result
+end
+
+def gen_types(types)
+    types.map{ |type, value| "#{type} #{value.kind_of?(Array) ? value.join(', ') : value}" }
+         .join("\n")
 end

@@ -7,63 +7,68 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
-    "postgresql_plugins": [
-      {
-        "processes": [
-          {
-            "ProcessMatch": [
-                "pg_writer postgres:.writer.process",
-                "pg_wal_writer postgres:.wal.writer.process",
-                "pg_autovacuum postgres:.*autovacuum",
-                "pg_stats_collector postgres:.stats.collector.process",
-                "pg_user_mail postgres:.user",
-                "pg_db_mail postgres:.[A-Za-z0-9]+.mail"
-            ]
-          }
-        ]
-      },
-      {
-        "tcpconns": [
-          {"ListeningPorts": false},
-          {"LocalPort": "5432"}
-        ]
-      },
-      {
-        "write_graphite": [
-          {
-            "-Node:postgresql": [
-              {"Host": "graphite"},
-              {"Port": "2003"},
-              {"Protocol": "tcp"},
-              {"Prefix": "postgresql."},
-              {"LogSendErrors": true},
-              {"AlwaysAppendDS": false},
-              {"StoreRates": true},
-              {"EscapeCharacter": "_"}
-            ]
-          }
-        ]
-      }
-    ],
-    "postgresql_postcache": {
-      "rules": [
-        {
-          "-Rule:postgresql_processes": [
-            {
-              "-Match:regex": [
-                {"Plugin": "processes"},
-                {"PluginInstance": "pg_.*"}
-              ]
-            },
-            {
-              "-Target:write": [
-                {"Plugin": "write_graphite/postgresql"}
-              ]
-            },
-            {"Target": "stop"}
-          ]
-        }
-      ]
-    }
+    "collectd_types": {
+      "pg_stat_database": ["size:GAUGE:0:U",
+                           "xact_commit:COUNTER:0:U",
+                           "xact_rollback:COUNTER:0:U",
+                           "blks_read:COUNTER:0:U",
+                           "blks_hits:COUNTER:0:U",
+                           "tup_returned:COUNTER:0:U",
+                           "tup_fetched:COUNTER:0:U",
+                           "tup_inserted:COUNTER:0:U",
+                           "tup_updated:COUNTER:0:U",
+                           "tup_deleted:COUNTER:0:U"],
+      "pg_stat_activity": ["requests:GAUGE:0:U",
+                           "clients:GAUGE:0:U",
+                           "idles:GAUGE:0:U"]},
+    "collectd_plugins": {
+      "processes":
+        [["ProcessMatch",
+          ["pg_writer postgres:.writer.process",
+           "pg_wal_writer postgres:.wal.writer.process",
+           "pg_autovacuum postgres:.*autovacuum",
+           "pg_stats_collector postgres:.stats.collector.process",
+           "pg_user_mail postgres:.user",
+           "pg_db_mail postgres:.[A-Za-z0-9]+.mail"]]],
+      "tcpconns": [["ListeningPorts", false], ["LocalPort", ["5432"]]],
+      "postgresql":
+        [["-Query:pg_stat_database",
+          [["Statement", "\"SELECT datname, pg_database_size(datname) AS size, xact_commit, xact_rollback, blks_read, blks_hit, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted FROM pg_stat_database\""],
+           ["-Result",
+            [["Type", "pg_stat_database"],
+             ["InstancesFrom", "datname"],
+             ["ValuesFrom", "size xact_commit xact_rollback blks_read blks_hit tup_returned tup_fetched tup_inserted tup_updated tup_deleted"]]]]],
+         ["-Query:pg_stat_activity",
+          [["Statement", "\"SELECT datname, count(*) AS requests, count(distinct(client_addr)) AS clients, sum(case when current_query='<IDLE>' then 1 else 0 end) AS idles FROM pg_stat_activity GROUP BY datname\""],
+           ["-Result",
+            [["Type", "pg_stat_activity"],
+             ["InstancesFrom", "datname"],
+             ["ValuesFrom", "requests clients idles"]]]]],
+         ["-Database:postgres",
+          [["Host", "localhost"],
+           ["User", "usersup"],
+           ["Password", "$DATABAG[passwords][usersup][password]"],
+           ["Query", ["pg_stat_database", "pg_stat_activity"]]]]],
+      "write_graphite":
+        {"-Node:postgresql":
+          [["Host", "graphite"],
+           ["Port", "2003"],
+           ["Protocol", "tcp"],
+           ["Prefix", "postgresql."],
+           ["LogSendErrors", true],
+           ["AlwaysAppendDS", false],
+           ["StoreRates", true],
+           ["SeparateInstances", true],
+           ["EscapeCharacter", "_"]]} },
+    "collectd_postcache": {
+      "rules":
+        [["-Rule:postgresql_processes",
+          [["-Match:regex", [["Plugin", "processes"], ["PluginInstance", "pg_.*"]]],
+           ["-Target:write", {"Plugin": "write_graphite/postgresql"}],
+           ["Target", "stop"]]],
+         ["-Rule:postgresql",
+          [["-Match:regex", [["Plugin", "postgresql"], ["PluginInstance", ".*"]]],
+           ["-Target:write", {"Plugin": "write_graphite/postgresql"}],
+           ["Target", "stop"]]]]}
   }
 }
