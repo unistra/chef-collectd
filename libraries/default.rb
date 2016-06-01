@@ -122,6 +122,10 @@ def hashify(config)
                             hash[key].concat(value)
                         when Hash
                             hash[key].merge!(value)
+                            # Hack for keeping order of elements!
+                            val = hash[key]
+                            hash.delete(key)
+                            hash[key] = val
                         end
                     end
                 end
