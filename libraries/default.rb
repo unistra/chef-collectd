@@ -19,11 +19,6 @@ LoadPlugin syslog
 
 }
 
-CONF_DIR = "/etc/collectd"
-CONF_FILE = "#{CONF_DIR}/collectd.conf"
-TYPES = {'ubuntu' => '/usr/share/collectd/types.db'}
-CUSTOM_TYPES = "#{CONF_DIR}/types.db.custom"
-
 # Recursively convert ImmutableArray to Array (so we can merge later).
 def convert(node)
   attributes = {}
@@ -42,7 +37,13 @@ end
 
 # Merge configuration from roles and node.
 def get_collectd_conf(attributes)
+  os_type = case node['platform']
+            when *node['collectd']['deb']['supported_platforms'] then 'deb'
+            when *node['collectd']['rpm']['supported_platforms'] then 'rpm'
+            end
+
   config = {
+    'pkgs'        => attributes.delete("collectd_#{os_type}_pkgs") || [],
     'params'      => attributes.delete('collectd_params') || {},
     'loadparams'  => attributes.delete('collectd_loadparams') || {},
     'plugins'     => hashify(attributes.delete('collectd_plugins') || {}),
@@ -50,37 +51,28 @@ def get_collectd_conf(attributes)
     'postcache'   => hashify(attributes.delete('collectd_postcache') || {})}
   types = attributes.delete('collectd_types') || {}
 
-  attributes.each do |attr, value|
-    case
-    when attr.start_with?('collectd_params')
-      config['params'] = Chef::Mixin::DeepMerge.deep_merge!(value, config['params'])
-    when attr.start_with?('collectd_loadparams')
-      config['loadparams'] = Chef::Mixin::DeepMerge.deep_merge!(value, config['loadparams'])
-    when attr.start_with?('collectd_plugins')
-      config['plugins'] = Chef::Mixin::DeepMerge.deep_merge(hashify(value), config['plugins'])
-    when attr.start_with?('collectd_precache')
-      config['precache'] = Chef::Mixin::DeepMerge.deep_merge(hashify(value), config['precache'])
-    when attr.start_with?('collectd_postcache')
-      config['postcache'] = Chef::Mixin::DeepMerge.deep_merge(hashify(value), config['postcache'])
-    when attr.start_with?('collectd_types')
-      types = Chef::Mixin::DeepMerge.deep_merge(value, types)
-    end
-  end
-
-  # Hack because lucid package has not be compiled with lvm library.
-  if node['platform'] == 'ubuntu' && node['platform_version'] == '10.04'
-    config['plugins'].delete('lvm')
+  # LVM plugin is not installable with Ubuntu 10.04 and Centos/RedHat 5 ...
+  if (node['collectd']['rpm']['supported_platforms'].include?(node['platform']) and
+      node['platform_version'][0].to_i == 5) or
+     (node['collectd']['deb']['supported_platforms'].include?(node['platform']) and
+      node['platform_version'] == '10.04')
+    Chef::Log.info("removing lvm elements")
+     config['pkgs'].delete('collectd-lvm')
+     config['plugins'].delete('lvm')
   end
 
   if !types.empty?
-    config['params'].update(
-      {'TypesDB' => [TYPES[node['platform']], '/etc/collectd/types.db.custom']})
-    files = {CONF_FILE => gen_conf(config), CUSTOM_TYPES => gen_types(types)}
+    config['params'].update({
+      'TypesDB' =>
+        [node['collectd'][os_type]['types'], node['collectd'][os_type]['custom_types']]})
+    files = {
+      node['collectd'][os_type]['conf_file']    => gen_conf(config),
+      node['collectd'][os_type]['custom_types']  => gen_types(types)}
   else
-    files = {CONF_FILE => gen_conf(config)}
+    files = {node['collectd'][os_type]['conf_file'] => gen_conf(config)}
   end
 
-  files
+  [config['pkgs'], files]
 end
 
 def hashify(config)
