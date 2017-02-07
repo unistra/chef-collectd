@@ -10,6 +10,7 @@
     "collectd_params": {
       "FQDNLookup": false
     },
+    "collectd_rpm_pkgs": ["collectd-disk"],
     "collectd_plugins": {
       "aggregation":
         [["-Aggregation:cpu",

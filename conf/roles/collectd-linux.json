@@ -7,6 +7,7 @@
   "run_list": [],
   "override_attributes": {},
   "default_attributes": {
+    "collectd_rpm_pkgs": ["collectd-lvm"],
     "collectd_plugins": {
       "lvm": null,
       "vmem": {"Verbose": false}
