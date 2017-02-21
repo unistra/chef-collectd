@@ -148,6 +148,13 @@ def gen_conf(config)
   # accessed.
   content.push(SYSLOG_CONF)
 
+  case node['platform']
+  when *node['collectd']['deb']['supported_platforms'] then 'deb'
+    # FIXME
+  when *node['collectd']['rpm']['supported_platforms'] then 'rpm'
+    content.push('Include "/etc/collectd.d/*.conf"')
+  end
+
   # Load plugins.
   loadplugin = Hash[config['plugins'].keys().map{ |plugin| [plugin, nil] }]
   loadplugin.merge!(config['loadparams'])

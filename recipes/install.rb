@@ -39,6 +39,10 @@ when *node['collectd']['rpm']['supported_platforms']
         action      :create
     end
     package('collectd') { action :install }
+
+    directory '/etc/collectd.d' do
+      action :create
+    end
   else
     log "unsupported platform version #{node['platform']}/#{node['platform_version']}"
     raise "unsupported platform version #{node['platform']}/#{node['platform_version']}"
