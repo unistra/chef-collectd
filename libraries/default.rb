@@ -55,7 +55,9 @@ def get_collectd_conf(attributes)
   if (node['collectd']['rpm']['supported_platforms'].include?(node['platform']) and
       node['platform_version'][0].to_i == 5) or
      (node['collectd']['deb']['supported_platforms'].include?(node['platform']) and
-      node['platform_version'] == '10.04')
+      node['platform_version'] == '10.04') or
+     (node['collectd']['deb']['supported_platforms'].include?(node['platform']) and
+      node['platform_version'] == '12.04')
     Chef::Log.info("removing lvm elements")
      config['pkgs'].delete('collectd-lvm')
      config['plugins'].delete('lvm')
